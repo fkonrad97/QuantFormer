@@ -50,15 +50,18 @@ class GeneralSyntheticAssetIVSurfaceDataset(Dataset):
         term_slope=0.05,
         n_surfaces=100,
         device='cpu',
-        randomize_skew=False,         
-        randomize_term=False,           
-        add_noise=False,                
-        noise_level=0.005               
+        randomize_skew=False,
+        randomize_term=False,
+        add_noise=False,
+        noise_level=0.005,
+        atm_jitter_fraction=0.25,
+        normalize=False 
     ):
         super().__init__()
 
         self.device = torch.device(device if torch.cuda.is_available() or device == 'cpu' else 'cpu')
         self.n_surfaces = n_surfaces
+        self.normalize = normalize 
 
         self.randomize_skew = randomize_skew
         self.randomize_term = randomize_term
@@ -76,12 +79,54 @@ class GeneralSyntheticAssetIVSurfaceDataset(Dataset):
         self.num_maturities = num_maturities
         self.min_assets = min_assets
         self.max_assets = max_assets
+        self.atm_jitter_fraction = atm_jitter_fraction
 
-        self.surfaces = []
+        surfaces = []
+        all_strikes = []
+        all_maturities = []
+        all_ivs = []
+
         for _ in range(n_surfaces):
             num_assets = random.randint(min_assets, max_assets)
             features, target = self.generate_single_surface(num_assets)
-            self.surfaces.append((features.to(self.device), target.to(self.device)))
+            surfaces.append((features, target))
+
+            # Collect for normalization
+            all_strikes.append(features[:, :-1].reshape(-1))  # all strike-like dims
+            all_maturities.append(features[:, -1])  # last column = maturity
+            all_ivs.append(target)
+
+        # Concatenate for global normalization
+        self.strikes = torch.cat(all_strikes).view(-1)
+        self.maturities = torch.cat(all_maturities).view(-1)
+        self.ivs = torch.cat(all_ivs).view(-1)
+
+        if normalize:
+            self.strike_mean = self.strikes.mean()
+            self.strike_std = self.strikes.std()
+            self.maturity_mean = self.maturities.mean()
+            self.maturity_std = self.maturities.std()
+            self.iv_mean = self.ivs.mean()
+            self.iv_std = self.ivs.std()
+
+            normalized_surfaces = []
+            for features, target in surfaces:
+                # Normalize strike dims
+                for i in range(features.shape[1] - 1):
+                    features[:, i] = (features[:, i] - self.strike_mean) / self.strike_std
+                # Normalize maturity
+                features[:, -1] = (features[:, -1] - self.maturity_mean) / self.maturity_std
+                # Normalize IVs
+                target = (target - self.iv_mean) / self.iv_std
+                normalized_surfaces.append((features, target))
+            self.surfaces = normalized_surfaces
+        else:
+            self.surfaces = surfaces
+
+    def inverse_transform_iv(self, iv_tensor):
+        if self.normalize:
+            return iv_tensor * self.iv_std + self.iv_mean
+        return iv_tensor
 
     def generate_single_surface(self, num_assets):
         """
@@ -102,36 +147,42 @@ class GeneralSyntheticAssetIVSurfaceDataset(Dataset):
         for _ in range(num_assets):
             K = torch.linspace(self.k_min, self.k_max, self.num_strikes_per_asset, device=self.device)
             strike_grids.append(K)
-    
-        T = torch.linspace(self.t_min, self.t_max, self.num_maturities, device=self.device)  # <-- FIXED
-    
+
+        T = torch.linspace(self.t_min, self.t_max, self.num_maturities, device=self.device)
         meshes = torch.meshgrid(*strike_grids, T, indexing='ij')
-    
+
         coords = torch.stack([g.flatten() for g in meshes], dim=-1)
-    
+
         # Randomize skew and term slope if enabled
         skew = self.skew_strength
         term_slope = self.term_slope
-    
+
         if self.randomize_skew:
-            skew = skew * (1.0 + 0.5 * (torch.rand(1, device=self.device).item() - 0.5))  # fix device
-    
+            skew *= (1.0 + 0.5 * (torch.rand(1, device=self.device).item() - 0.5))
+
         if self.randomize_term:
-            term_slope = term_slope * (1.0 + 0.5 * (torch.rand(1, device=self.device).item() - 0.5))  # fix device
-    
+            term_slope *= (1.0 + 0.5 * (torch.rand(1, device=self.device).item() - 0.5))
+
+        # ATM randomization (adds per-surface skew variability)
+        atm_low = self.k_min + self.atm_jitter_fraction * (self.k_max - self.k_min)
+        atm_high = self.k_max - self.atm_jitter_fraction * (self.k_max - self.k_min)
+        K_atm = torch.FloatTensor(1).uniform_(atm_low, atm_high).item()
+
         vol_surface = self.base_vol
         for i in range(num_assets):
             K = meshes[i]
-            K_atm = (self.k_min + self.k_max) / 2.0
-            vol_surface += skew * (K - K_atm) ** 2
-    
+            vol_surface += skew * (K - K_atm)  # directional skew around variable ATM
+
         T_mesh = meshes[-1]
         vol_surface += term_slope * T_mesh
-    
+
         if self.add_noise:
             noise = self.noise_level * torch.randn_like(vol_surface)
             vol_surface += noise
-    
+
+        # Clamp IVs to positive values
+        vol_surface = torch.clamp(vol_surface, min=0.01)
+
         return coords, vol_surface.flatten()
     
     def __len__(self):

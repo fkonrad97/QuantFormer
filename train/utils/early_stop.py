@@ -21,7 +21,7 @@ class EarlyStopping:
             self.counter = 0
             # Save best model
             torch.save(model.state_dict(), self.save_path)
-            print(f"Validation loss improved; saving model to {self.save_path}")
+            # print(f"Validation loss improved; saving model to {self.save_path}")
         else:
             self.counter += 1
             if self.counter >= self.patience:

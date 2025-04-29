@@ -4,7 +4,6 @@ import pandas as pd
 import refinitiv.dataplatform as rdp
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
-from pathlib import Path
 
 # ====== AUTH CONFIG ======
 load_dotenv()
@@ -41,8 +40,8 @@ def flatten_json_surface(json_data, valuation_date_str):
 
 # ====== BATCH FETCH ======
 start_date = datetime(2025, 4, 1)
-end_date = datetime(2025, 4, 29)
-instrumentCode = "MS"
+end_date = datetime(2025, 4, 30)
+instrumentCode = "NVDA"
 
 all_surfaces = {}
 request_body_template = {
@@ -86,7 +85,7 @@ for i in range((end_date - start_date).days + 1):
 for date_str, json_data in all_surfaces.items():
     try:
         df = flatten_json_surface(json_data, valuation_date_str=date_str)
-        folder_path = f"data/real_world/iv_data/"
+        folder_path = f"data/real_world/iv_data/{instrumentCode}/"
         os.makedirs(folder_path, exist_ok=True)
         df.to_csv(os.path.join(folder_path, f"{instrumentCode}_{date_str}_iv_surface.csv"), index=False)
 

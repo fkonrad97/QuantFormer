@@ -177,3 +177,7 @@ cython_debug/
 *.pth
 /lsge
 todo.txt
+
+data/real_world/iv_data
+
+latex

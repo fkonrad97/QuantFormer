@@ -12,7 +12,8 @@ synthetic_ds = GeneralSyntheticAssetIVSurfaceDataset(
     device='cuda',  # will auto-fallback if unavailable
     add_noise=True,
     randomize_skew=True,
-    randomize_term=True
+    randomize_term=True,
+    normalize=True
 )
 
 # Print shape info

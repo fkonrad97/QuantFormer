@@ -18,10 +18,9 @@ class VolSurfaceHead(nn.Module):
         """
         Args:
             x: (batch_size, seq_len, embed_dim)
-
         Returns:
             (batch_size, seq_len)
         """
-        out = self.net(x)  # (batch_size, seq_len, 1)
-        out = out.squeeze(-1)  # Remove last dimension
-        return out
+        out = self.net(x)  # (batch, seq_len, 1)
+        out = out.squeeze(-1)
+        return torch.clamp(out, min=0.001)
