@@ -108,7 +108,7 @@ def train_on_synthetic(save_path="synthetic_pretrained.pth", device=torch.device
                 preds = model(features_batch, asset_dims_batch)
 
                 # === Convert normalized → real IVs
-                preds_real = torch.clamp(dataset.inverse_transform_iv(preds), min=0.001)
+                preds_real = dataset.inverse_transform_iv(preds)
                 targets_real = dataset.inverse_transform_iv(targets_batch)
 
                 val_loss = criterion(preds_real, targets_real)
@@ -246,7 +246,7 @@ def finetune_on_real_world(pretrained_model_path, real_data_folder="data/real_wo
                 preds = model(features_batch, asset_dims=asset_dims)
 
                 # Invert predicted and target IVs to real scale for evaluation
-                preds_real = torch.clamp(dataset.inverse_transform_iv(preds), min=0.001)
+                preds_real = dataset.inverse_transform_iv(preds)
                 targets_real = dataset.inverse_transform_iv(targets_batch)
                 
                 val_loss = criterion(preds_real, targets_real)

@@ -11,7 +11,8 @@ class VolSurfaceHead(nn.Module):
         self.net = nn.Sequential(
             nn.Linear(embed_dim, hidden_dim),
             nn.GELU(),
-            nn.Linear(hidden_dim, 1)
+            nn.Linear(hidden_dim, 1),
+            nn.Softplus()  # ensures output > 0
         )
 
     def forward(self, x):
@@ -23,4 +24,4 @@ class VolSurfaceHead(nn.Module):
         """
         out = self.net(x)  # (batch, seq_len, 1)
         out = out.squeeze(-1)
-        return torch.clamp(out, min=0.001)
+        return out

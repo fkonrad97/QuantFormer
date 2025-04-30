@@ -39,9 +39,9 @@ def flatten_json_surface(json_data, valuation_date_str):
     return pd.DataFrame(records)
 
 # ====== BATCH FETCH ======
-start_date = datetime(2025, 4, 1)
+start_date = datetime(2024, 1, 1)
 end_date = datetime(2025, 4, 30)
-instrumentCode = "NVDA"
+instrumentCode = "TSM"
 
 all_surfaces = {}
 request_body_template = {

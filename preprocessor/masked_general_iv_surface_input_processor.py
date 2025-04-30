@@ -68,7 +68,7 @@ class MaskedGeneralInputProcessor(nn.Module):
             num_assets = asset_dims[i]
             real_features = x[i, :, :num_assets + 1]  # slice real asset features
             real_features = real_features.reshape(-1, 1)
-            real_features = real_features.to(x.device)  # ✅ fixed device assignment
+            real_features = real_features.to(x.device)  # fixed device assignment
 
             embedded = self.raw_projector(real_features)
             embedded = embedded.view(seq_len, num_assets + 1, self.embed_dim)

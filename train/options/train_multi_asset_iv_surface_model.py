@@ -24,9 +24,9 @@ def train_on_synthetic_multi_asset(save_path="synthetic_multiasset_pretrained.pt
     # Build multi-asset synthetic dataset
     dataset = GeneralSyntheticAssetIVSurfaceDataset(
         min_assets=1,           # now using multiple assets
-        max_assets=4,
-        num_strikes_per_asset=5,
-        num_maturities=5,
+        max_assets=3,
+        num_strikes_per_asset=6,
+        num_maturities=6,
         k_min=90,
         k_max=140,
         t_min=0.05,
@@ -34,7 +34,7 @@ def train_on_synthetic_multi_asset(save_path="synthetic_multiasset_pretrained.pt
         base_vol=np.random.uniform(0.30, 0.36),
         skew_strength=-0.0008,
         term_slope=0.002,
-        n_surfaces=200,
+        n_surfaces=300,
         device='cuda',
         randomize_skew=True,
         randomize_term=True,
@@ -62,7 +62,7 @@ def train_on_synthetic_multi_asset(save_path="synthetic_multiasset_pretrained.pt
     model = GeneralIVSurfaceTransformerModel(
         input_processor=input_processor,
         embed_dim=64,
-        num_heads=4,
+        num_heads=2,
         ff_hidden_dim=128,
         num_layers=4,
         head_hidden_dim=64,
@@ -114,7 +114,7 @@ def train_on_synthetic_multi_asset(save_path="synthetic_multiasset_pretrained.pt
                 preds = model(features_batch, asset_dims_batch)
 
                 # For evaluation, convert normalized IVs back to real scale
-                preds_real = torch.clamp(dataset.inverse_transform_iv(preds), min=0.001)
+                preds_real = dataset.inverse_transform_iv(preds)
                 targets_real = dataset.inverse_transform_iv(targets_batch)
                 
                 val_loss = criterion(preds_real, targets_real)
@@ -261,7 +261,7 @@ def finetune_on_real_world_multi_asset(pretrained_model_path,
 
                 preds = model(features_batch, asset_dims=asset_dims)
 
-                preds_real = torch.clamp(dataset.inverse_transform_iv(preds), min=0.001)
+                preds_real = dataset.inverse_transform_iv(preds)
                 targets_real = dataset.inverse_transform_iv(targets_batch)
 
                 val_loss = criterion(preds_real, targets_real)
